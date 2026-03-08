@@ -23,7 +23,6 @@
                 'line-height',
                 'padding',
                 'margin',
-                'color',
                 'white-space'];
             requiredStyles.forEach(style => {
                 spanNode.style[style] = computedStyle.getPropertyValue(style);
