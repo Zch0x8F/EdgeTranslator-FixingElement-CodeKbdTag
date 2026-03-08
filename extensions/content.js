@@ -58,7 +58,7 @@
                     const contentObserver = new MutationObserver(function (mutations) {
                         mutations.forEach(function (mutation) {
                             if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                                if (mutation.target.querySelector && (mutation.target.querySelector('code') || mutation.target.querySelector('kbd'))) {
+                                if (mutation.target.querySelector && mutation.target.querySelector('code, kbd')) {
                                     processNodeAndChild(mutation.target);
                                 }
                             }
