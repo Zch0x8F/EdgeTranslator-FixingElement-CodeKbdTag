@@ -3,29 +3,30 @@
 
     let isTranslationActive = false; // Trạng thái dịch
 
+    // Chỉ lấy các thuộc tính CSS cần thiết
+    const REQUIRED_STYLES = [
+        'background-color',
+        'border-radius',
+        'border',
+        'box-shadow',
+        'color',
+        'display',
+        'font-size',
+        'font-family',
+        'font-weight',
+        'line-height',
+        'padding',
+        'margin',
+        'white-space'
+    ];
+
     // Hàm thay thế thẻ <code> hoặc <kbd> bằng <span>
     function replaceTagToSpan(node) {
         if ((node.tagName === 'CODE' || node.tagName === 'KBD') && node.nodeType === 1 && node.children.length === 0) {
             const spanNode = document.createElement('span');
             const computedStyle = window.getComputedStyle(node);
 
-            // Chỉ lấy các thuộc tính CSS cần thiết
-            const requiredStyles = [
-                'background-color',
-                'border-radius',
-                'border',
-                'box-shadow',
-                'color',
-                'display',
-                'font-size',
-                'font-family',
-                'font-weight',
-                'line-height',
-                'padding',
-                'margin',
-                'color',
-                'white-space'];
-            requiredStyles.forEach(style => {
+            REQUIRED_STYLES.forEach(style => {
                 spanNode.style[style] = computedStyle.getPropertyValue(style);
             });
 
