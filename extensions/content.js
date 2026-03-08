@@ -1,4 +1,4 @@
-(function () {
+const contentScript = (function () {
     'use strict';
 
     let isTranslationActive = false; // Trạng thái dịch
@@ -92,11 +92,28 @@
         });
     });
 
-    const titleTag = document.querySelector('head > title');
-    if (titleTag) {
-        titleObserver.observe(titleTag, {
-            attributes: true
-        });
+    function init() {
+        const titleTag = document.querySelector('head > title');
+        if (titleTag) {
+            titleObserver.observe(titleTag, {
+                attributes: true
+            });
+        }
     }
 
+    if (typeof module === 'undefined') {
+        init();
+    }
+
+    return {
+        replaceTagToSpan,
+        processNodeAndChild,
+        init,
+        getIsTranslationActive: () => isTranslationActive,
+        setIsTranslationActive: (val) => { isTranslationActive = val; }
+    };
 })();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = contentScript;
+}
