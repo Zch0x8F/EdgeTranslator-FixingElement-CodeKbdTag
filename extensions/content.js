@@ -1,24 +1,7 @@
-const contentScript = (function () {
+(function () {
     'use strict';
 
     let isTranslationActive = false; // Trạng thái dịch
-
-    // Chỉ lấy các thuộc tính CSS cần thiết
-    const REQUIRED_STYLES = [
-        'background-color',
-        'border-radius',
-        'border',
-        'box-shadow',
-        'color',
-        'display',
-        'font-size',
-        'font-family',
-        'font-weight',
-        'line-height',
-        'padding',
-        'margin',
-        'white-space'
-    ];
 
     // Hàm thay thế thẻ <code> hoặc <kbd> bằng <span>
     function replaceTagToSpan(node) {
@@ -26,25 +9,42 @@ const contentScript = (function () {
             const spanNode = document.createElement('span');
             const computedStyle = window.getComputedStyle(node);
 
-            REQUIRED_STYLES.forEach(style => {
+            // Chỉ lấy các thuộc tính CSS cần thiết
+            const requiredStyles = [
+                'background-color',
+                'border-radius',
+                'border',
+                'box-shadow',
+                'color',
+                'display',
+                'font-size',
+                'font-family',
+                'font-weight',
+                'line-height',
+                'padding',
+                'margin',
+                'color',
+                'white-space'];
+            requiredStyles.forEach(style => {
                 spanNode.style[style] = computedStyle.getPropertyValue(style);
             });
 
-            // Apply collected styles
-            for (const style in update.styles) {
-                spanNode.style[style] = update.styles[style];
-            }
+            spanNode.innerHTML = node.innerHTML;
 
-            spanNode.innerHTML = update.innerHTML;
-
-            if (update.tagName === 'KBD') {
+            if (node.tagName === 'KBD') {
                 spanNode.style.whiteSpace = 'nowrap';
                 spanNode.style.width = 'auto';
                 spanNode.style.maxWidth = '100%';
             }
 
-            update.el.parentNode.replaceChild(spanNode, update.el);
-        });
+            node.parentNode.replaceChild(spanNode, node);
+        }
+    }
+
+    function processNodeAndChild(node) {
+        if (node.nodeType === 1) {
+            node.querySelectorAll('code, kbd').forEach(replaceTagToSpan);
+        }
     }
 
     // Theo dõi <title> thay dđổi để phát hiện khi trang bắt đầu dịch hoặc dịch xong
@@ -58,7 +58,7 @@ const contentScript = (function () {
                     const contentObserver = new MutationObserver(function (mutations) {
                         mutations.forEach(function (mutation) {
                             if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                                if (mutation.target.querySelector && mutation.target.querySelector('code, kbd')) {
+                                if (mutation.target.querySelector && (mutation.target.querySelector('code') || mutation.target.querySelector('kbd'))) {
                                     processNodeAndChild(mutation.target);
                                 }
                             }
@@ -92,28 +92,11 @@ const contentScript = (function () {
         });
     });
 
-    function init() {
-        const titleTag = document.querySelector('head > title');
-        if (titleTag) {
-            titleObserver.observe(titleTag, {
-                attributes: true
-            });
-        }
+    const titleTag = document.querySelector('head > title');
+    if (titleTag) {
+        titleObserver.observe(titleTag, {
+            attributes: true
+        });
     }
 
-    if (typeof module === 'undefined') {
-        init();
-    }
-
-    return {
-        replaceTagToSpan,
-        processNodeAndChild,
-        init,
-        getIsTranslationActive: () => isTranslationActive,
-        setIsTranslationActive: (val) => { isTranslationActive = val; }
-    };
 })();
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = contentScript;
-}
