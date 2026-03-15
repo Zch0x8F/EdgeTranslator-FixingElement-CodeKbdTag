@@ -30,7 +30,7 @@
                 spanNode.style[style] = computedStyle.getPropertyValue(style);
             });
 
-            spanNode.innerHTML = node.innerHTML;
+            spanNode.textContent = node.textContent;
 
             if (node.tagName === 'KBD') {
                 spanNode.style.whiteSpace = 'nowrap';
