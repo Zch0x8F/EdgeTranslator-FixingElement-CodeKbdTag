@@ -3,47 +3,67 @@ const contentScript = (function () {
 
     let isTranslationActive = false; // Trạng thái dịch
 
-    // Hàm thay thế thẻ <code> hoặc <kbd> bằng <span>
-    function replaceTagToSpan(node) {
-        if ((node.tagName === 'CODE' || node.tagName === 'KBD') && node.nodeType === 1 && node.children.length === 0) {
+    const REQUIRED_STYLES = [
+        'background-color',
+        'border-radius',
+        'border',
+        'box-shadow',
+        'color',
+        'display',
+        'font-size',
+        'font-family',
+        'font-weight',
+        'line-height',
+        'padding',
+        'margin',
+        'white-space'];
+
+    function processNodeAndChild(node) {
+        if (node.nodeType !== 1) return;
+
+        const elements = node.querySelectorAll('code, kbd');
+        const updates = [];
+
+        // Batch reads: collect styles and info for valid elements
+        elements.forEach(el => {
+            if (el.children.length === 0) {
+                const computedStyle = window.getComputedStyle(el);
+                const styles = {};
+
+                REQUIRED_STYLES.forEach(style => {
+                    styles[style] = computedStyle.getPropertyValue(style);
+                });
+
+                updates.push({
+                    el,
+                    styles,
+                    innerHTML: el.innerHTML,
+                    tagName: el.tagName
+                });
+            }
+        });
+
+        // Batch writes: perform the replacements
+        updates.forEach(update => {
+            if (!update.el.parentNode) return;
+
             const spanNode = document.createElement('span');
-            const computedStyle = window.getComputedStyle(node);
 
-            // Chỉ lấy các thuộc tính CSS cần thiết
-            const requiredStyles = [
-                'background-color',
-                'border-radius',
-                'border',
-                'box-shadow',
-                'color',
-                'display',
-                'font-size',
-                'font-family',
-                'font-weight',
-                'line-height',
-                'padding',
-                'margin',
-                'white-space'];
-            requiredStyles.forEach(style => {
-                spanNode.style[style] = computedStyle.getPropertyValue(style);
-            });
+            // Apply collected styles
+            for (const style in update.styles) {
+                spanNode.style[style] = update.styles[style];
+            }
 
-            spanNode.innerHTML = node.innerHTML;
+            spanNode.innerHTML = update.innerHTML;
 
-            if (node.tagName === 'KBD') {
+            if (update.tagName === 'KBD') {
                 spanNode.style.whiteSpace = 'nowrap';
                 spanNode.style.width = 'auto';
                 spanNode.style.maxWidth = '100%';
             }
 
-            node.parentNode.replaceChild(spanNode, node);
-        }
-    }
-
-    function processNodeAndChild(node) {
-        if (node.nodeType === 1) {
-            node.querySelectorAll('code, kbd').forEach(replaceTagToSpan);
-        }
+            update.el.parentNode.replaceChild(spanNode, update.el);
+        });
     }
 
     // Theo dõi <title> thay dđổi để phát hiện khi trang bắt đầu dịch hoặc dịch xong
