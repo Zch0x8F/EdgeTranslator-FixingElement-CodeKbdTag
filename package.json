@@ -20,6 +20,8 @@
   "homepage": "https://github.com/Zch0x8F/EdgeTranslator-FixingElement-CodeKbdTag#readme",
   "devDependencies": {
     "jest": "^30.3.0",
-    "jsdom": "^24.0.0"
+    "jest-environment-jsdom": "^30.3.0",
+    "jsdom": "^24.0.0",
+    "util": "^0.12.5"
   }
 }
