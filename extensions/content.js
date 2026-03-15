@@ -1,4 +1,4 @@
-(function () {
+const contentScript = (function () {
     'use strict';
 
     let isTranslationActive = false; // Trạng thái dịch
@@ -30,22 +30,21 @@
                 spanNode.style[style] = computedStyle.getPropertyValue(style);
             });
 
-            spanNode.innerHTML = node.innerHTML;
+            // Apply collected styles
+            for (const style in update.styles) {
+                spanNode.style[style] = update.styles[style];
+            }
 
-            if (node.tagName === 'KBD') {
+            spanNode.innerHTML = update.innerHTML;
+
+            if (update.tagName === 'KBD') {
                 spanNode.style.whiteSpace = 'nowrap';
                 spanNode.style.width = 'auto';
                 spanNode.style.maxWidth = '100%';
             }
 
-            node.parentNode.replaceChild(spanNode, node);
-        }
-    }
-
-    function processNodeAndChild(node) {
-        if (node.nodeType === 1) {
-            node.querySelectorAll('code, kbd').forEach(replaceTagToSpan);
-        }
+            update.el.parentNode.replaceChild(spanNode, update.el);
+        });
     }
 
     // Theo dõi <title> thay dđổi để phát hiện khi trang bắt đầu dịch hoặc dịch xong
@@ -59,7 +58,7 @@
                     const contentObserver = new MutationObserver(function (mutations) {
                         mutations.forEach(function (mutation) {
                             if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                                if (mutation.target.querySelector && (mutation.target.querySelector('code') || mutation.target.querySelector('kbd'))) {
+                                if (mutation.target.querySelector && mutation.target.querySelector('code, kbd')) {
                                     processNodeAndChild(mutation.target);
                                 }
                             }
@@ -93,11 +92,28 @@
         });
     });
 
-    const titleTag = document.querySelector('head > title');
-    if (titleTag) {
-        titleObserver.observe(titleTag, {
-            attributes: true
-        });
+    function init() {
+        const titleTag = document.querySelector('head > title');
+        if (titleTag) {
+            titleObserver.observe(titleTag, {
+                attributes: true
+            });
+        }
     }
 
+    if (typeof module === 'undefined') {
+        init();
+    }
+
+    return {
+        replaceTagToSpan,
+        processNodeAndChild,
+        init,
+        getIsTranslationActive: () => isTranslationActive,
+        setIsTranslationActive: (val) => { isTranslationActive = val; }
+    };
 })();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = contentScript;
+}
