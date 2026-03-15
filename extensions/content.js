@@ -1,4 +1,4 @@
-(function () {
+const contentScript = (function () {
     'use strict';
 
     let isTranslationActive = false; // Trạng thái dịch
@@ -77,7 +77,7 @@
                     const contentObserver = new MutationObserver(function (mutations) {
                         mutations.forEach(function (mutation) {
                             if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                                if (mutation.target.querySelector && (mutation.target.querySelector('code') || mutation.target.querySelector('kbd'))) {
+                                if (mutation.target.querySelector && mutation.target.querySelector('code, kbd')) {
                                     processNodeAndChild(mutation.target);
                                 }
                             }
@@ -111,11 +111,28 @@
         });
     });
 
-    const titleTag = document.querySelector('head > title');
-    if (titleTag) {
-        titleObserver.observe(titleTag, {
-            attributes: true
-        });
+    function init() {
+        const titleTag = document.querySelector('head > title');
+        if (titleTag) {
+            titleObserver.observe(titleTag, {
+                attributes: true
+            });
+        }
     }
 
+    if (typeof module === 'undefined') {
+        init();
+    }
+
+    return {
+        replaceTagToSpan,
+        processNodeAndChild,
+        init,
+        getIsTranslationActive: () => isTranslationActive,
+        setIsTranslationActive: (val) => { isTranslationActive = val; }
+    };
 })();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = contentScript;
+}
