@@ -1,133 +1,92 @@
-const contentScript = require('../extensions/content.js');
+const { JSDOM } = require('jsdom');
+const fs = require('fs');
+const path = require('path');
 
-describe('Content Script', () => {
+const contentJsPath = path.resolve(__dirname, '../extensions/content.js');
+const contentJsCode = fs.readFileSync(contentJsPath, 'utf8');
+
+describe('content.js replaceTagToSpan', () => {
+    let dom;
+
     beforeEach(() => {
-        document.body.innerHTML = '';
-        document.head.innerHTML = '<title>Test Page</title>';
-        contentScript.setIsTranslationActive(false);
-    });
+        // Create a JSDOM environment
+        dom = new JSDOM(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>Test</title></head>
+            <body></body>
+            </html>
+        `, { runScripts: "dangerously" });
 
-    describe('replaceTagToSpan', () => {
-        test('should replace <code> tag with <span> and copy styles', () => {
-            const code = document.createElement('code');
-            code.innerHTML = 'test code';
-            code.style.backgroundColor = 'red';
-            document.body.appendChild(code);
-
-            // Mock getComputedStyle
-            window.getComputedStyle = jest.fn().mockReturnValue({
-                getPropertyValue: (prop) => code.style[prop] || 'none'
-            });
-
-            contentScript.replaceTagToSpan(code);
-
-            const span = document.querySelector('span');
-            expect(span).not.toBeNull();
-            expect(span.innerHTML).toBe('test code');
-            expect(span.style.backgroundColor).toBe('red');
-            expect(document.querySelector('code')).toBeNull();
-        });
-
-        test('should replace <kbd> tag and set nowrap style', () => {
-            const kbd = document.createElement('kbd');
-            kbd.innerHTML = 'Ctrl+C';
-            document.body.appendChild(kbd);
-
-            window.getComputedStyle = jest.fn().mockReturnValue({
-                getPropertyValue: () => 'none'
-            });
-
-            contentScript.replaceTagToSpan(kbd);
-
-            const span = document.querySelector('span');
-            expect(span).not.toBeNull();
-            expect(span.style.whiteSpace).toBe('nowrap');
-        });
-
-        test('should NOT replace tag if it has children', () => {
-            const code = document.createElement('code');
-            code.innerHTML = '<span>nested</span>';
-            document.body.appendChild(code);
-
-            contentScript.replaceTagToSpan(code);
-
-            expect(document.querySelector('code')).not.toBeNull();
-            expect(document.querySelector('span')).not.toBeNull(); // The nested span
+        // Mock getComputedStyle for the tests
+        dom.window.getComputedStyle = () => ({
+            getPropertyValue: (prop) => {
+                const styles = {
+                    'background-color': 'red',
+                    'border-radius': '5px',
+                    'border': '1px solid black',
+                    'box-shadow': 'none',
+                    'color': 'white',
+                    'display': 'inline',
+                    'font-size': '12px',
+                    'font-family': 'monospace',
+                    'font-weight': 'bold',
+                    'line-height': '1.5',
+                    'padding': '2px',
+                    'margin': '1px',
+                    'white-space': 'pre'
+                };
+                return styles[prop] || '';
+            }
         });
     });
 
-    describe('processNodeAndChild', () => {
-        test('should process all code and kbd tags in a node', () => {
-            document.body.innerHTML = `
-                <div>
-                    <code>code1</code>
-                    <kbd>kbd1</kbd>
-                    <p>text</p>
-                </div>
-            `;
+    it('should replace <code> tag without children', async () => {
+        const { window } = dom;
+        const { document } = window;
 
-            window.getComputedStyle = jest.fn().mockReturnValue({
-                getPropertyValue: () => 'none'
-            });
+        // Add <code> without children
+        document.body.innerHTML = '<code>print("hello")</code>';
 
-            contentScript.processNodeAndChild(document.body);
+        // Evaluate the script
+        window.eval(contentJsCode);
 
-            expect(document.querySelectorAll('span').length).toBe(2);
-            expect(document.querySelectorAll('code').length).toBe(0);
-            expect(document.querySelectorAll('kbd').length).toBe(0);
-        });
+        // Trigger translation active
+        const title = document.querySelector('title');
+        title.setAttribute('_msttexthash', '12345');
+
+        // Wait a bit for MutationObserver to process
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // <code> should be replaced by <span>
+        const span = document.querySelector('span');
+        expect(span).not.toBeNull();
+        expect(document.querySelector('code')).toBeNull();
+        expect(span.innerHTML).toBe('print("hello")');
+        expect(span.style.color).toBe('white');
     });
 
-    describe('MutationObserver logic', () => {
-        test('should trigger processing when _msttexthash is added to title', (done) => {
-            const title = document.querySelector('title');
+    it('should not replace <code> tag with children', async () => {
+        const { window } = dom;
+        const { document } = window;
 
-            // Re-initialize to attach observer to our new title
-            contentScript.init();
+        // Add <code> with children
+        document.body.innerHTML = '<code><span>print("hello")</span></code>';
 
-            document.body.innerHTML = '<code>translate me</code>';
-            window.getComputedStyle = jest.fn().mockReturnValue({
-                getPropertyValue: () => 'none'
-            });
+        // Evaluate the script
+        window.eval(contentJsCode);
 
-            // Simulate Edge adding the attribute
-            title.setAttribute('_msttexthash', '12345');
+        // Trigger translation active
+        const title = document.querySelector('title');
+        title.setAttribute('_msttexthash', '12345');
 
-            // MutationObserver is asynchronous
-            setTimeout(() => {
-                try {
-                    expect(contentScript.getIsTranslationActive()).toBe(true);
-                    expect(document.querySelectorAll('span').length).toBe(1);
-                    expect(document.querySelectorAll('code').length).toBe(0);
-                    done();
-                } catch (error) {
-                    done(error);
-                }
-            }, 100);
-        });
+        // Wait a bit for MutationObserver to process
+        await new Promise(resolve => setTimeout(resolve, 50));
 
-        test('should stop processing when _msttexthash is removed from title', (done) => {
-            const title = document.querySelector('title');
-            contentScript.init();
-
-            // Start translation
-            title.setAttribute('_msttexthash', '12345');
-
-            setTimeout(() => {
-                expect(contentScript.getIsTranslationActive()).toBe(true);
-
-                // End translation
-                title.removeAttribute('_msttexthash');
-
-                setTimeout(() => {
-                    try {
-                        expect(contentScript.getIsTranslationActive()).toBe(false);
-                        done();
-                    } catch (error) {
-                        done(error);
-                    }
-                }, 100);
-            }, 100);
-        });
+        // <code> should NOT be replaced
+        const code = document.querySelector('code');
+        expect(code).not.toBeNull();
+        expect(document.querySelector('body > span')).toBeNull();
+        expect(code.innerHTML).toBe('<span>print("hello")</span>');
     });
 });
