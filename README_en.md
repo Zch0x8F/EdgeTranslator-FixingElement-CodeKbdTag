@@ -44,15 +44,3 @@ To use this solution as a developer extension in Edge:
 1. Open `edge://extensions/`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select the folder containing the extension files.
-
-## Testing
-
-The project uses Jest in combination with `jest-environment-jsdom` to run unit tests for the replacement logic. The testing configuration files include:
-- `jest.config.js`: Configures the testing environment for JSDOM.
-- `tests/setup.js`: Provides necessary polyfills for JSDOM classes (such as `TextEncoder`, `TextDecoder`) sourced from Node's built-in `util` library.
-
-To run the tests, use the following commands:
-```bash
-npm install
-npm test
-```
