@@ -3,6 +3,7 @@ const contentScript = (function () {
 
     let isTranslationActive = false; // Trạng thái dịch
 
+    // Chỉ lấy các thuộc tính CSS cần thiết
     const REQUIRED_STYLES = [
         'background-color',
         'border-radius',
@@ -16,38 +17,18 @@ const contentScript = (function () {
         'line-height',
         'padding',
         'margin',
-        'white-space'];
+        'white-space'
+    ];
 
-    function processNodeAndChild(node) {
-        if (node.nodeType !== 1) return;
-
-        const elements = node.querySelectorAll('code, kbd');
-        const updates = [];
-
-        // Batch reads: collect styles and info for valid elements
-        elements.forEach(el => {
-            if (el.children.length === 0) {
-                const computedStyle = window.getComputedStyle(el);
-                const styles = {};
-
-                REQUIRED_STYLES.forEach(style => {
-                    styles[style] = computedStyle.getPropertyValue(style);
-                });
-
-                updates.push({
-                    el,
-                    styles,
-                    innerHTML: el.innerHTML,
-                    tagName: el.tagName
-                });
-            }
-        });
-
-        // Batch writes: perform the replacements
-        updates.forEach(update => {
-            if (!update.el.parentNode) return;
-
+    // Hàm thay thế thẻ <code> hoặc <kbd> bằng <span>
+    function replaceTagToSpan(node) {
+        if ((node.tagName === 'CODE' || node.tagName === 'KBD') && node.nodeType === 1 && node.children.length === 0) {
             const spanNode = document.createElement('span');
+            const computedStyle = window.getComputedStyle(node);
+
+            REQUIRED_STYLES.forEach(style => {
+                spanNode.style[style] = computedStyle.getPropertyValue(style);
+            });
 
             // Apply collected styles
             for (const style in update.styles) {
